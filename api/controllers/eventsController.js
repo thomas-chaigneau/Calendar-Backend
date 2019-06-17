@@ -8,17 +8,35 @@ exports.postEvent = (req, res, next) => {
     console.log('------POST END------')
 
     try {
-        if (event.frequency === 'daily') {
-            const endingDate = moment(event.startingDate).add(event.amount, event.unitOfTime);
-            const repetitionTimes = endingDate.diff(event.startingDate, 'days');
+        const endingDate = moment(event.startingDate).add(event.amount, event.unitOfTime);
+        const repetitionTimes = endingDate.diff(event.startingDate, 'days');
+        
+        if (event.frequency === 'weekly') {
+            const selectedDays = event.daysSelected.split(';')
+            const promises = Array(repetitionTimes).fill(0).map((_, index) => {
+                eventToCreate = {
+                    ...event,
+                    startingDate: moment(event.startingDate, 'YYYY-MM-DD').add(index, 'days').format('YYYY-MM-DD')
+                }
+                const eventCreatedDayName = moment.weekdays(moment(eventToCreate.startingDate).day());
+                if (selectedDays.includes(eventCreatedDayName)) {
+                    return Events.create(eventToCreate)
+                }
+            })
+            return Promise.all(promises)
+                .then(events => res.send(events.filter(event => event)))
+                .catch(err => next(err))
+
+
+        } if (event.frequency === 'daily') {
             const promises = Array(repetitionTimes).fill(0).map((_, index) => Events.create({
                 ...event,
                 startingDate: moment(event.startingDate, 'YYYY-MM-DD').add(index, 'days').format('YYYY-MM-DD')
             }));
-
             return Promise.all(promises)
-                .then(events => res.send(events))
+                .then(toto => res.send(toto))
                 .catch(err => next(err))
+
 
         } else {
             Events
@@ -31,6 +49,7 @@ exports.postEvent = (req, res, next) => {
         res.status(400).send(err)
     }
 }
+
 
 exports.getAllEvents  = (req, res) => {
 	try {
